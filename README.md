@@ -4,7 +4,7 @@
 
 **Corrector ortográfico y de estilo para español · 100% offline · Sin suscripciones · Sin internet**
 
-![License](https://img.shields.io/badge/Licencia-MIT-green?style=for-the-badge)
+![Licencia: GPL v3](https://img.shields.io/badge/Licencia-GPLv3-blue.svg?style=for-the-badge)
 ![Offline](https://img.shields.io/badge/Offline-100%25-blue?style=for-the-badge)
 
 <img src="Captura de pantalla_20260311_202217.png" width="700" alt="Captura de Validador en acción"/>
