@@ -1,0 +1,42 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.empresa:validador-texto >---------------------
+[INFO] Building Validador de Texto Empresarial 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.2.0:clean (default-clean) @ validador-texto ---
+[INFO] Deleting /home/andrew/Escritorio/validador/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ validador-texto ---
+[INFO] skip non existing resourceDirectory /home/andrew/Escritorio/validador/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ validador-texto ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 4 source files with javac [debug target 17] to target/classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ validador-texto ---
+[INFO] skip non existing resourceDirectory /home/andrew/Escritorio/validador/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ validador-texto ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --- surefire:3.2.5:test (default-test) @ validador-texto ---
+[INFO] No tests to run.
+[INFO] 
+[INFO] --- jar:3.4.1:jar (default-jar) @ validador-texto ---
+[INFO] Building jar: /home/andrew/Escritorio/validador/target/validador-texto-1.0.0.jar
+[INFO] 
+[INFO] --- assembly:3.6.0:single (make-assembly) @ validador-texto ---
+[INFO] Building jar: /home/andrew/Escritorio/validador/target/ValidadorTexto.jar
+[WARNING] Configuration option 'appendAssemblyId' is set to false.
+Instead of attaching the assembly file: /home/andrew/Escritorio/validador/target/ValidadorTexto.jar, it will become the file for main project artifact.
+NOTE: If multiple descriptors or descriptor-formats are provided for this project, the value of this file will be non-deterministic!
+[WARNING] Replacing pre-existing project main-artifact file: /home/andrew/Escritorio/validador/target/validador-texto-1.0.0.jar
+with assembly file: /home/andrew/Escritorio/validador/target/ValidadorTexto.jar
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  6.523 s
+[INFO] Finished at: 2026-03-11T19:59:09+01:00
+[INFO] ------------------------------------------------------------------------
