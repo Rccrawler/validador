@@ -1,0 +1,59 @@
+# ─── Compilación Maven ────────────────────────────────────────────────────────
+target/
+
+# ─── Scripts locales (de prueba) ───────────────────────────────
+*.bat
+*.sh
+
+# ─── IDEs ─────────────────────────────────────────────────────────────────────
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+nb-configuration.xml
+
+# ─── Sistema operativo ────────────────────────────────────────────────────────
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Linux
+*~
+
+# ─── Notas y archivos internos ───────────────────────────────────────────────
+próxima generación.txt
+prosimas updates.txt
+
+# ─── Logs y temporales ────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+hs_err_pid*
+
+# ─── Credenciales y configuración sensible ────────────────────────────────────
+*.env
+.env
+secrets.properties
+
+# ─── Otros ───────────────────────────────────────────────
+.próxima generación.txt
