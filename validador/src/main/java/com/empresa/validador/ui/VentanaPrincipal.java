@@ -309,7 +309,7 @@ public class VentanaPrincipal extends JFrame {
     private JButton crearBoton(String texto, Color color) {
         JButton btn = new JButton(texto);
         btn.setBackground(color);
-        btn.setForeground(Color.WHITE);
+        btn.setForeground(Color.BLACK); // Cambiado a negro para mejor legibilidad
         btn.setFocusPainted(false);
         btn.setFont(new Font("SansSerif", Font.BOLD, 13));
         btn.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
