@@ -1,6 +1,11 @@
 # ─── Compilación Maven ────────────────────────────────────────────────────────
 target/
 
+# ─── Empaquetado local (jpackage) ────────────────────────────────────────────
+dist/
+tools/
+*.msi
+
 # ─── Scripts locales (de prueba) ───────────────────────────────
 *.bat
 *.sh

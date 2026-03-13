@@ -5,10 +5,16 @@ import org.languagetool.rules.RuleMatch;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.text.StyledDocument;
+import java.awt.datatransfer.StringSelection;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Ventana principal de la aplicación.
@@ -32,10 +38,18 @@ public class VentanaPrincipal extends JFrame {
     private final JButton btnAnalizar;
     private final JButton btnLimpiar;
     private final JButton btnCorregirTodo;
+    private final JButton btnDescartar;
+    private final JButton btnCortar;
+    private final JButton btnCopiar;
+    private final JCheckBox chkAutoCorregir;
+    private final Timer temporizadorAutoCorreccion;
 
     // ── Motor de corrección ──────────────────────────────────────────────────
     private CorrectorTexto corrector;
     private List<RuleMatch> ultimosErrores;
+    private final Set<Integer> erroresDescartados;
+    private boolean cambioProgramatico;
+    private boolean autoCorreccionEnCurso;
 
     // ── Colores corporativos neutros ─────────────────────────────────────────
     private static final Color COLOR_FONDO      = new Color(245, 245, 248);
@@ -64,6 +78,7 @@ public class VentanaPrincipal extends JFrame {
 
         // ── Lista de errores ─────────────────────────────────────────────────
         modeloErrores = new DefaultListModel<>();
+        erroresDescartados = new HashSet<>();
         listaErrores  = new JList<>(modeloErrores);
         listaErrores.setFont(new Font("SansSerif", Font.PLAIN, 12));
         listaErrores.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -82,18 +97,72 @@ public class VentanaPrincipal extends JFrame {
             }
         });
 
+        listaErrores.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2 && !chkAutoCorregir.isSelected()) {
+                    descartarSeleccionActual();
+                }
+            }
+        });
+
         // ── Botones ──────────────────────────────────────────────────────────
         btnAnalizar    = crearBoton("🔍 Analizar",      COLOR_BTN);
         btnLimpiar     = crearBoton("🗑 Limpiar",       COLOR_BTN);
         btnCorregirTodo = crearBoton("✅ Corregir todo", new Color(40, 130, 70));
+        btnDescartar   = crearBoton("🚫 Descartar",     COLOR_BTN_DANGER);
+        btnCortar      = crearBoton("✂ Cortar",        COLOR_BTN);
+        btnCopiar      = crearBoton("📋 Copiar",       COLOR_BTN);
+        chkAutoCorregir = new JCheckBox("Autocorregir al escribir");
+
+        temporizadorAutoCorreccion = new Timer(900, e -> autocorregirTrasEscritura());
+        temporizadorAutoCorreccion.setRepeats(false);
 
         btnAnalizar.setEnabled(false);
         btnLimpiar.setEnabled(false);
         btnCorregirTodo.setEnabled(false);
+        btnDescartar.setEnabled(false);
+        btnCortar.setEnabled(false);
+        btnCopiar.setEnabled(false);
+        chkAutoCorregir.setEnabled(false);
 
         btnAnalizar.addActionListener(e -> analizarTexto());
         btnLimpiar.addActionListener(e -> limpiarTodo());
         btnCorregirTodo.addActionListener(e -> corregirTodo());
+        btnDescartar.addActionListener(e -> descartarSeleccionActual());
+        btnCortar.addActionListener(e -> cortarSinFormato());
+        btnCopiar.addActionListener(e -> copiarSinFormato());
+        chkAutoCorregir.addActionListener(e -> {
+            if (!chkAutoCorregir.isSelected()) {
+                temporizadorAutoCorreccion.stop();
+            }
+            btnDescartar.setEnabled(false);
+        });
+
+        listaErrores.addListSelectionListener(e -> btnDescartar.setEnabled(
+            !chkAutoCorregir.isSelected()
+                && listaErrores.getSelectedIndex() >= 0
+                && ultimosErrores != null
+                && !ultimosErrores.isEmpty()
+        ));
+
+        areaTexto.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) { manejarCambioTexto(); }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) { manejarCambioTexto(); }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) { manejarCambioTexto(); }
+
+            private void manejarCambioTexto() {
+                if (cambioProgramatico || !chkAutoCorregir.isSelected() || !areaTexto.isEnabled()) {
+                    return;
+                }
+                temporizadorAutoCorreccion.restart();
+            }
+        });
 
         // Atajo de teclado: F5 para analizar
         areaTexto.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
@@ -124,7 +193,15 @@ public class VentanaPrincipal extends JFrame {
         barraHerramientas.add(Box.createHorizontalStrut(10));
         barraHerramientas.add(btnAnalizar);
         barraHerramientas.add(btnCorregirTodo);
+        barraHerramientas.add(btnDescartar);
+        barraHerramientas.add(btnCortar);
+        barraHerramientas.add(btnCopiar);
         barraHerramientas.add(btnLimpiar);
+        barraHerramientas.add(chkAutoCorregir);
+
+        chkAutoCorregir.setOpaque(false);
+        chkAutoCorregir.setForeground(Color.WHITE);
+        chkAutoCorregir.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
         // Panel central dividido
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
@@ -175,6 +252,10 @@ public class VentanaPrincipal extends JFrame {
                     areaTexto.setEnabled(true);
                     btnAnalizar.setEnabled(true);
                     btnLimpiar.setEnabled(true);
+                    btnDescartar.setEnabled(false);
+                    btnCortar.setEnabled(true);
+                    btnCopiar.setEnabled(true);
+                    chkAutoCorregir.setEnabled(true);
                     barraEstado.setText("  ✅ Motor listo. Escribe o pega texto y pulsa Analizar (F5).");
                     areaTexto.requestFocus();
                 } catch (Exception ex) {
@@ -202,6 +283,8 @@ public class VentanaPrincipal extends JFrame {
         btnAnalizar.setEnabled(false);
         barraEstado.setText("  ⏳ Analizando…");
         modeloErrores.clear();
+        erroresDescartados.clear();
+        btnDescartar.setEnabled(false);
 
         SwingWorker<List<RuleMatch>, Void> worker = new SwingWorker<>() {
             @Override
@@ -214,9 +297,9 @@ public class VentanaPrincipal extends JFrame {
                 try {
                     ultimosErrores = get();
 
-                    // Resaltar en el texto
+                    // Resaltar solo errores activos (no descartados)
                     StyledDocument doc = areaTexto.getStyledDocument();
-                    ResaltadorErrores.aplicar(doc, ultimosErrores);
+                    ResaltadorErrores.aplicar(doc, obtenerErroresActivos());
 
                     // Poblar lista de errores
                     if (ultimosErrores.isEmpty()) {
@@ -225,17 +308,7 @@ public class VentanaPrincipal extends JFrame {
                     } else {
                         for (int i = 0; i < ultimosErrores.size(); i++) {
                             RuleMatch m = ultimosErrores.get(i);
-                            String tipo = CorrectorTexto.obtenerTipoError(m);
-                            String sugerencias = m.getSuggestedReplacements().isEmpty()
-                                ? "(sin sugerencias)"
-                                : String.join(", ", m.getSuggestedReplacements()
-                                    .subList(0, Math.min(3, m.getSuggestedReplacements().size())));
-                            modeloErrores.addElement(
-                                String.format("[%d] %s (pos %d-%d)%n    %s%n    → %s",
-                                    i + 1, tipo,
-                                    m.getFromPos(), m.getToPos(),
-                                    m.getMessage(),
-                                    sugerencias));
+                            modeloErrores.addElement(formatearError(i, m));
                         }
                         btnCorregirTodo.setEnabled(true);
                     }
@@ -269,19 +342,31 @@ public class VentanaPrincipal extends JFrame {
         // Aplicar correcciones de atrás hacia adelante para no romper posiciones
         String texto = areaTexto.getText();
         StringBuilder sb = new StringBuilder(texto);
+        int correccionesAplicadas = 0;
 
         for (int i = ultimosErrores.size() - 1; i >= 0; i--) {
+            if (erroresDescartados.contains(i)) {
+                continue;
+            }
             RuleMatch m = ultimosErrores.get(i);
             if (!m.getSuggestedReplacements().isEmpty()) {
                 String sugerencia = m.getSuggestedReplacements().get(0);
                 sb.replace(m.getFromPos(), m.getToPos(), sugerencia);
+                correccionesAplicadas++;
             }
         }
 
-        areaTexto.setText(sb.toString());
+        if (correccionesAplicadas == 0) {
+            barraEstado.setText("  ⚠ No hay correcciones aplicables (todas descartadas o sin sugerencia)");
+            return;
+        }
+
+        setTextoSinDisparar(sb.toString());
         modeloErrores.clear();
         ultimosErrores = null;
+        erroresDescartados.clear();
         btnCorregirTodo.setEnabled(false);
+        btnDescartar.setEnabled(false);
         barraEstado.setText("  ✅ Correcciones aplicadas. Vuelve a analizar para verificar.");
         // Limpiar resaltado
         StyledDocument doc = areaTexto.getStyledDocument();
@@ -293,13 +378,180 @@ public class VentanaPrincipal extends JFrame {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void limpiarTodo() {
-        areaTexto.setText("");
+        setTextoSinDisparar("");
         modeloErrores.clear();
         ultimosErrores = null;
+        erroresDescartados.clear();
         btnCorregirTodo.setEnabled(false);
+        btnDescartar.setEnabled(false);
         barraEstado.setText("  ✅ Motor listo. Escribe o pega texto y pulsa Analizar (F5).");
         StyledDocument doc = areaTexto.getStyledDocument();
         ResaltadorErrores.aplicar(doc, List.of());
+    }
+
+    private void autocorregirTrasEscritura() {
+        if (!chkAutoCorregir.isSelected() || corrector == null || autoCorreccionEnCurso) return;
+
+        final String textoOriginal = areaTexto.getText();
+        if (textoOriginal == null || textoOriginal.isBlank()) return;
+
+        autoCorreccionEnCurso = true;
+        barraEstado.setText("  ⏳ Autocorrigiendo…");
+
+        SwingWorker<ResultadoAutoCorreccion, Void> worker = new SwingWorker<>() {
+            @Override
+            protected ResultadoAutoCorreccion doInBackground() throws Exception {
+                List<RuleMatch> errores = corrector.analizar(textoOriginal);
+                if (errores.isEmpty()) {
+                    return new ResultadoAutoCorreccion(textoOriginal, 0);
+                }
+
+                StringBuilder sb = new StringBuilder(textoOriginal);
+                int correcciones = 0;
+                for (int i = errores.size() - 1; i >= 0; i--) {
+                    RuleMatch m = errores.get(i);
+                    if (!m.getSuggestedReplacements().isEmpty()) {
+                        String sugerencia = m.getSuggestedReplacements().get(0);
+                        sb.replace(m.getFromPos(), m.getToPos(), sugerencia);
+                        correcciones++;
+                    }
+                }
+
+                return new ResultadoAutoCorreccion(sb.toString(), correcciones);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ResultadoAutoCorreccion resultado = get();
+                    if (!resultado.textoCorregido.equals(textoOriginal)) {
+                        setTextoSinDisparar(resultado.textoCorregido);
+                    }
+                    modeloErrores.clear();
+                    ultimosErrores = null;
+                    erroresDescartados.clear();
+                    btnCorregirTodo.setEnabled(false);
+                    btnDescartar.setEnabled(false);
+                    StyledDocument doc = areaTexto.getStyledDocument();
+                    ResaltadorErrores.aplicar(doc, List.of());
+
+                    if (resultado.correcciones > 0) {
+                        barraEstado.setText("  ✅ Autocorrección aplicada: " + resultado.correcciones + " cambio(s).");
+                    } else {
+                        barraEstado.setText("  ✅ Sin cambios automáticos necesarios.");
+                    }
+                } catch (Exception ex) {
+                    barraEstado.setText("  ❌ Error en autocorrección: " + ex.getMessage());
+                } finally {
+                    autoCorreccionEnCurso = false;
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    private void setTextoSinDisparar(String texto) {
+        cambioProgramatico = true;
+        try {
+            areaTexto.setText(texto);
+        } finally {
+            cambioProgramatico = false;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Copiar texto plano al portapapeles
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void copiarSinFormato() {
+        String textoSeleccionado = areaTexto.getSelectedText();
+        String textoACopiar = (textoSeleccionado != null && !textoSeleccionado.isEmpty())
+            ? textoSeleccionado
+            : areaTexto.getText();
+
+        if (textoACopiar == null || textoACopiar.isBlank()) {
+            barraEstado.setText("  ⚠ No hay texto para copiar.");
+            return;
+        }
+
+        StringSelection contenido = new StringSelection(textoACopiar);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contenido, null);
+        barraEstado.setText("  📋 Texto copiado sin formato al portapapeles.");
+    }
+
+    private void cortarSinFormato() {
+        String textoSeleccionado = areaTexto.getSelectedText();
+        String textoACopiar = (textoSeleccionado != null && !textoSeleccionado.isEmpty())
+            ? textoSeleccionado
+            : areaTexto.getText();
+
+        if (textoACopiar == null || textoACopiar.isBlank()) {
+            barraEstado.setText("  ⚠ No hay texto para cortar.");
+            return;
+        }
+
+        StringSelection contenido = new StringSelection(textoACopiar);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(contenido, null);
+
+        // Corta "todo": limpia editor y panel de resultados para empezar de cero.
+        limpiarTodo();
+        barraEstado.setText("  ✂ Texto cortado sin formato y editor limpio.");
+    }
+
+    private String formatearError(int indice, RuleMatch m) {
+        String tipo = CorrectorTexto.obtenerTipoError(m);
+        String sugerencias = m.getSuggestedReplacements().isEmpty()
+            ? "(sin sugerencias)"
+            : String.join(", ", m.getSuggestedReplacements()
+                .subList(0, Math.min(3, m.getSuggestedReplacements().size())));
+        String estado = erroresDescartados.contains(indice) ? " [DESCARTADO]" : "";
+
+        return String.format("[%d]%s %s (pos %d-%d)%n    %s%n    → %s",
+            indice + 1, estado, tipo,
+            m.getFromPos(), m.getToPos(),
+            m.getMessage(),
+            sugerencias);
+    }
+
+    private void descartarSeleccionActual() {
+        if (chkAutoCorregir.isSelected() || ultimosErrores == null || ultimosErrores.isEmpty()) {
+            return;
+        }
+
+        int idx = listaErrores.getSelectedIndex();
+        if (idx < 0 || idx >= ultimosErrores.size()) {
+            barraEstado.setText("  ⚠ Selecciona un error para descartar o recuperar.");
+            return;
+        }
+
+        if (erroresDescartados.contains(idx)) {
+            erroresDescartados.remove(idx);
+            barraEstado.setText("  ✅ Corrección recuperada para el error seleccionado.");
+        } else {
+            erroresDescartados.add(idx);
+            barraEstado.setText("  🚫 Corrección descartada para el error seleccionado.");
+        }
+
+        modeloErrores.set(idx, formatearError(idx, ultimosErrores.get(idx)));
+        listaErrores.setSelectedIndex(idx);
+
+        // Al descartar, deja de marcar ese error en rojo inmediatamente.
+        StyledDocument doc = areaTexto.getStyledDocument();
+        ResaltadorErrores.aplicar(doc, obtenerErroresActivos());
+    }
+
+    private List<RuleMatch> obtenerErroresActivos() {
+        if (ultimosErrores == null || ultimosErrores.isEmpty()) {
+            return List.of();
+        }
+
+        List<RuleMatch> activos = new ArrayList<>();
+        for (int i = 0; i < ultimosErrores.size(); i++) {
+            if (!erroresDescartados.contains(i)) {
+                activos.add(ultimosErrores.get(i));
+            }
+        }
+        return activos;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -326,6 +578,16 @@ public class VentanaPrincipal extends JFrame {
         lbl.setFont(new Font("SansSerif", Font.BOLD, 15));
         lbl.setForeground(Color.WHITE);
         return lbl;
+    }
+
+    private static class ResultadoAutoCorreccion {
+        private final String textoCorregido;
+        private final int correcciones;
+
+        private ResultadoAutoCorreccion(String textoCorregido, int correcciones) {
+            this.textoCorregido = textoCorregido;
+            this.correcciones = correcciones;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
